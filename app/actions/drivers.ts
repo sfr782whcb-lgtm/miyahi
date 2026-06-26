@@ -1,0 +1,58 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/app/actions/auth";
+import {
+  createDriver as createDriverQuery,
+  updateDriverStatus,
+} from "@/lib/queries/drivers";
+import { hashPassword } from "@/lib/auth/password";
+import { driverSchema, driverStatusSchema } from "@/lib/validations/schemas";
+
+export async function createDriverAction(formData: FormData) {
+  await requireAdmin();
+
+  const parsed = driverSchema.safeParse({
+    name: formData.get("name"),
+    phone: formData.get("phone") || undefined,
+    password: formData.get("password") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  let passwordHash: string | undefined;
+  if (parsed.data.password) {
+    passwordHash = await hashPassword(parsed.data.password);
+  }
+
+  await createDriverQuery({
+    name: parsed.data.name,
+    phone: parsed.data.phone,
+    passwordHash,
+  });
+
+  revalidatePath("/drivers");
+  revalidatePath("/orders/new");
+
+  return { success: true };
+}
+
+export async function updateDriverStatusAction(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  const statusParsed = driverStatusSchema.safeParse(formData.get("status"));
+
+  if (!id || !statusParsed.success) {
+    return { error: "بيانات غير صالحة" };
+  }
+
+  await updateDriverStatus(id, statusParsed.data);
+
+  revalidatePath("/drivers");
+  revalidatePath("/orders/new");
+
+  return { success: true };
+}

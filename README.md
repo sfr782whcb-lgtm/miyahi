@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# مياهي — Miyyahi
 
-## Getting Started
+Arabic RTL PWA for managing water bottle delivery.
 
-First, run the development server:
+## Setup
 
 ```bash
+npm install
+npm run db:setup   # migrate + seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Demo accounts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Role | Phone | Password |
+|------|-------|----------|
+| Admin | 0500000001 | admin123 |
+| Driver | 0501111111 | driver123 |
+| Customer | 0503333333 | customer123 |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run start` | Production server |
+| `npm run db:setup` | Migrate + seed database |
+| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:seed` | Seed demo data |
+| `npm run generate:icons` | Regenerate PWA icons |
 
-To learn more about Next.js, take a look at the following resources:
+## Environment variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `.env.example` to `.env`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `DATABASE_URL` — SQLite locally (`file:./dev.db`)
+- `SESSION_SECRET` — min 32 chars for JWT session cookies
+- `NEXT_PUBLIC_APP_URL` — app URL for deployment
 
-## Deploy on Vercel
+## PostgreSQL migration (future)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The Prisma schema uses standard types compatible with PostgreSQL. To migrate:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Change `provider` in `prisma/schema.prisma` from `sqlite` to `postgresql`
+2. Update `DATABASE_URL` to your Postgres connection string
+3. Run `npx prisma migrate dev`
+
+## PWA
+
+PWA works in production mode:
+
+```bash
+npm run build && npm start
+```
+
+- Install on Android (Chrome) or iOS (Safari → Add to Home Screen)
+- Offline fallback at `/~offline`
+- Service worker via Serwist at `/serwist/sw.js`
+
+## Deploy to Vercel
+
+1. Push to GitHub
+2. Import project in Vercel
+3. Set environment variables: `SESSION_SECRET`, `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`
+4. For production DB, use Vercel Postgres / Neon / Supabase (SQLite does not persist on Vercel serverless)
+5. Run migrations: add `prisma migrate deploy` to build command or use a post-deploy hook
+
+Suggested build command:
+
+```
+prisma generate && prisma migrate deploy && next build
+```
+
+## Tech stack
+
+- Next.js 16 (App Router, Turbopack)
+- Prisma 6 + SQLite
+- Serwist PWA
+- Zod validation
+- Sonner toasts
+- Tailwind CSS 4

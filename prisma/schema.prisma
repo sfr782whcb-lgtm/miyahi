@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DRIVER
+  CUSTOMER
+}
+
+enum OrderStatus {
+  NEW
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum DriverStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  driver       Driver?
+  customer     Customer?
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String   @unique
+  address   String?
+  area      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Driver {
+  id        String       @id @default(cuid())
+  userId    String?      @unique
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  status    DriverStatus @default(AVAILABLE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  orders    Order[]
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  name       String
+  sizeLiters Int
+  price      Float
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orders     Order[]
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customerId   String?
+  customer     Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String
+  phone        String
+  address      String
+  area         String
+  productId    String?
+  product      Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  bottles      Int
+  bottleSize   Int
+  status       OrderStatus @default(NEW)
+  price        Float
+  driverId     String?
+  driver       Driver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
