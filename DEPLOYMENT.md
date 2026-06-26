@@ -157,6 +157,7 @@ DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run db:seed
 
 | Issue | Fix |
 |-------|-----|
+| Local `prisma migrate status` mismatch | Run `npm run db:reset` to recreate `dev.db` from the single production migration |
 | Build fails on `migrate deploy` | Ensure `DATABASE_URL` and `TURSO_AUTH_TOKEN` are set in Vercel |
 | Login fails | Run `db:seed` against Turso; check `SESSION_SECRET` is set |
 | PWA not installable | Must use HTTPS (Vercel provides this automatically) |
