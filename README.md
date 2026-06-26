@@ -6,9 +6,12 @@ Arabic RTL PWA for managing water bottle delivery.
 
 ```bash
 npm install
-npm run db:setup   # migrate + seed
+cp .env.example .env   # set DATABASE_URL to your PostgreSQL connection string
+npm run db:setup       # migrate + seed
 npm run dev
 ```
+
+For local PostgreSQL, use [Neon](https://neon.tech) (free), [Supabase](https://supabase.com), Docker, or a local Postgres install.
 
 ## Demo accounts
 
@@ -26,25 +29,18 @@ npm run dev
 | `npm run build` | Production build |
 | `npm run start` | Production server |
 | `npm run db:setup` | Migrate + seed database |
-| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:migrate` | Run Prisma migrations (dev) |
 | `npm run db:seed` | Seed demo data |
+| `npm run db:reset` | Reset database and re-seed |
 | `npm run generate:icons` | Regenerate PWA icons |
 
 ## Environment variables
 
 Copy `.env.example` to `.env`:
 
-- `DATABASE_URL` — SQLite locally (`file:./dev.db`)
+- `DATABASE_URL` — PostgreSQL connection string
 - `SESSION_SECRET` — min 32 chars for JWT session cookies
 - `NEXT_PUBLIC_APP_URL` — app URL for deployment
-
-## PostgreSQL migration (future)
-
-The Prisma schema uses standard types compatible with PostgreSQL. To migrate:
-
-1. Change `provider` in `prisma/schema.prisma` from `sqlite` to `postgresql`
-2. Update `DATABASE_URL` to your Postgres connection string
-3. Run `npx prisma migrate dev`
 
 ## PWA
 
@@ -60,22 +56,12 @@ npm run build && npm start
 
 ## Deploy to Vercel
 
-1. Push to GitHub
-2. Import project in Vercel
-3. Set environment variables: `SESSION_SECRET`, `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`
-4. For production DB, use Vercel Postgres / Neon / Supabase (SQLite does not persist on Vercel serverless)
-5. Run migrations: add `prisma migrate deploy` to build command or use a post-deploy hook
-
-Suggested build command:
-
-```
-prisma generate && prisma migrate deploy && next build
-```
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full step-by-step guide.
 
 ## Tech stack
 
 - Next.js 16 (App Router, Turbopack)
-- Prisma 6 + SQLite
+- Prisma 6 + PostgreSQL
 - Serwist PWA
 - Zod validation
 - Sonner toasts

@@ -5,7 +5,7 @@
 - Node.js 20+
 - GitHub account
 - Vercel account
-- **Turso account** (free) for production database — SQLite files do not persist on Vercel
+- **PostgreSQL database** (Vercel Postgres, Neon, or Supabase) — SQLite files do not persist on Vercel
 
 ---
 
@@ -17,7 +17,7 @@
 cd /Users/yaramhmdalhwytat/miyyahi
 git add .
 git status   # verify .env is NOT listed
-git commit -m "Prepare miyyahi for production deployment"
+git commit -m "Migrate to PostgreSQL and prepare for Vercel deployment"
 ```
 
 ### 1.2 Create GitHub repository
@@ -47,35 +47,34 @@ git push -u origin main
 
 ---
 
-## Step 2: Set up Turso database (production)
+## Step 2: Set up PostgreSQL (production)
 
-Vercel serverless cannot use local SQLite files. Turso provides cloud SQLite compatible with this project.
+### Option A — Vercel Postgres (recommended)
 
-### 2.1 Install Turso CLI
+1. Deploy the project on Vercel first (Step 3) **or** create the project and add Storage
+2. Vercel Dashboard → your project → **Storage** → **Create Database** → **Postgres**
+3. Connect the database to your project — Vercel sets `POSTGRES_URL` / `DATABASE_URL` automatically
+4. Ensure the connected variable name is `DATABASE_URL` (or map it in env vars)
 
-```bash
-curl -sSfL https://get.tur.so/install.sh | bash
-turso auth login
-```
+### Option B — Neon (free tier)
 
-### 2.2 Create database
+1. Go to [neon.tech](https://neon.tech) and sign up
+2. Create a project named `miyyahi-prod`
+3. Copy the **connection string** (use the pooled URL for serverless if offered)
+4. Format: `postgresql://user:password@host/dbname?sslmode=require`
 
-```bash
-turso db create miyyahi-prod
-turso db show miyyahi-prod --url
-turso db tokens create miyyahi-prod
-```
+### 2.1 Run migrations on production database
 
-Save the **URL** (`libsql://...`) and **token**.
-
-### 2.3 Run migrations on Turso
+From your machine, pointing at the production Postgres URL:
 
 ```bash
-export DATABASE_URL="libsql://your-db.turso.io"
-export TURSO_AUTH_TOKEN="your-token"
+export DATABASE_URL="postgresql://..."
+cd /Users/yaramhmdalhwytat/miyyahi
 npx prisma migrate deploy
 npm run db:seed
 ```
+
+This creates all tables and demo login accounts.
 
 ---
 
@@ -84,9 +83,10 @@ npm run db:seed
 ### 3.1 Import project
 
 1. Go to [vercel.com/new](https://vercel.com/new)
-2. Click **Import Git Repository**
-3. Select your `miyyahi` repo
-4. Framework Preset: **Next.js** (auto-detected)
+2. Sign in with GitHub and authorize Vercel
+3. Click **Import Git Repository**
+4. Select your `miyyahi` repo
+5. Framework Preset: **Next.js** (auto-detected)
 
 ### 3.2 Environment variables
 
@@ -94,10 +94,15 @@ Add these in Vercel → Project → Settings → Environment Variables:
 
 | Variable | Value | Environments |
 |----------|-------|--------------|
-| `DATABASE_URL` | `libsql://...` from Turso | Production, Preview |
-| `TURSO_AUTH_TOKEN` | Turso auth token | Production, Preview |
+| `DATABASE_URL` | PostgreSQL connection string | Production, Preview |
 | `SESSION_SECRET` | Run `openssl rand -base64 32` | Production, Preview |
-| `NEXT_PUBLIC_APP_URL` | `https://your-app.vercel.app` | Production |
+| `NEXT_PUBLIC_APP_URL` | `https://your-app.vercel.app` (set after first deploy) | Production |
+
+Generate session secret locally:
+
+```bash
+openssl rand -base64 32
+```
 
 ### 3.3 Deploy
 
@@ -107,13 +112,13 @@ Click **Deploy**. Vercel runs:
 prisma generate && prisma migrate deploy && next build
 ```
 
-### 3.4 Seed production data (first time only)
+### 3.4 After first deploy
 
-After first deploy, seed demo accounts locally pointing at Turso:
+1. Copy your Vercel URL (e.g. `https://miyyahi-xxx.vercel.app`)
+2. Set `NEXT_PUBLIC_APP_URL` to that URL
+3. **Redeploy** (Deployments → ⋮ → Redeploy)
 
-```bash
-DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run db:seed
-```
+If login fails, seed the production database (Step 2.1).
 
 ---
 
@@ -135,7 +140,7 @@ DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run db:seed
 1. Open production URL in Chrome (Android) or Safari (iOS)
 2. **Android:** Menu → Install app
 3. **iOS:** Share → Add to Home Screen
-4. Enable airplane mode → visit cached page → should show offline page for new navigations
+4. Enable airplane mode → visit cached page → offline page for new navigations
 
 ### Responsive
 
@@ -157,11 +162,11 @@ DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run db:seed
 
 | Issue | Fix |
 |-------|-----|
-| Local `prisma migrate status` mismatch | Run `npm run db:reset` to recreate `dev.db` from the single production migration |
-| Build fails on `migrate deploy` | Ensure `DATABASE_URL` and `TURSO_AUTH_TOKEN` are set in Vercel |
-| Login fails | Run `db:seed` against Turso; check `SESSION_SECRET` is set |
-| PWA not installable | Must use HTTPS (Vercel provides this automatically) |
-| Database empty after deploy | Seed Turso DB manually (Step 2.3) |
+| Build fails on `migrate deploy` | Ensure `DATABASE_URL` is set and points to PostgreSQL |
+| Login fails | Run `npm run db:seed` against production `DATABASE_URL`; check `SESSION_SECRET` |
+| PWA not installable | Must use HTTPS; set `NEXT_PUBLIC_APP_URL` and redeploy |
+| Database empty after deploy | Run Step 2.1 (migrate + seed) against production DB |
+| Local dev after migration | Update `.env` `DATABASE_URL` from `file:./dev.db` to a PostgreSQL URL |
 
 ---
 
