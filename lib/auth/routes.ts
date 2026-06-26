@@ -9,6 +9,7 @@ export const ADMIN_PREFIXES = [
   "/reports",
   "/customers",
   "/products",
+  "/settings",
 ] as const;
 
 export const DRIVER_PREFIXES = ["/driver"] as const;

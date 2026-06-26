@@ -30,7 +30,8 @@ export default function LoginForm() {
             name="phone"
             type="tel"
             dir="ltr"
-            placeholder="0500000001"
+            placeholder="05XXXXXXXX"
+            pattern="05[0-9]{8}"
             autoComplete="tel"
             required
             className={inputClassName}
@@ -54,9 +55,6 @@ export default function LoginForm() {
           {isPending ? "جاري الدخول..." : "تسجيل الدخول"}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-gray-400">
-        تجريبي: admin 0500000001 / admin123
-      </p>
     </div>
   );
 }

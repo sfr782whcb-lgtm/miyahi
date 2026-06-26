@@ -69,12 +69,15 @@ From your machine, pointing at the production Postgres URL:
 
 ```bash
 export DATABASE_URL="postgresql://..."
+export ADMIN_PHONE="05XXXXXXXX"
+export ADMIN_PASSWORD="your-secure-password"
+export ADMIN_NAME="مدير النظام"
 cd /Users/yaramhmdalhwytat/miyyahi
 npx prisma migrate deploy
 npm run db:seed
 ```
 
-This creates all tables and demo login accounts.
+This creates tables, default products, and the first admin user (when `ADMIN_PHONE` and `ADMIN_PASSWORD` are set). Create customers and drivers from the admin dashboard after logging in.
 
 ---
 
@@ -96,7 +99,12 @@ Add these in Vercel → Project → Settings → Environment Variables:
 |----------|-------|--------------|
 | `DATABASE_URL` | PostgreSQL connection string | Production, Preview |
 | `SESSION_SECRET` | Run `openssl rand -base64 32` | Production, Preview |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Run `npm run generate:vapid` | Production, Preview |
+| `VAPID_PRIVATE_KEY` | From `npm run generate:vapid` | Production, Preview |
+| `VAPID_SUBJECT` | e.g. `mailto:you@example.com` | Production, Preview |
 | `NEXT_PUBLIC_APP_URL` | `https://your-app.vercel.app` (set after first deploy) | Production |
+| `ADMIN_PHONE` | Saudi mobile for first admin (optional at seed time) | Production |
+| `ADMIN_PASSWORD` | Password for first admin (optional at seed time) | Production |
 
 Generate session secret locally:
 
@@ -118,7 +126,7 @@ prisma generate && prisma migrate deploy && next build
 2. Set `NEXT_PUBLIC_APP_URL` to that URL
 3. **Redeploy** (Deployments → ⋮ → Redeploy)
 
-If login fails, seed the production database (Step 2.1).
+If login fails, run Step 2.1 with `ADMIN_PHONE` and `ADMIN_PASSWORD`, or create users from the admin dashboard.
 
 ---
 
@@ -126,11 +134,9 @@ If login fails, seed the production database (Step 2.1).
 
 ### Authentication
 
-| Role | Phone | Password | Expected redirect |
-|------|-------|----------|-------------------|
-| Admin | 0500000001 | admin123 | `/dashboard` |
-| Driver | 0501111111 | driver123 | `/driver` |
-| Customer | 0503333333 | customer123 | `/customer` |
+1. Log in with the admin account created during seed (`ADMIN_PHONE` / `ADMIN_PASSWORD`)
+2. Create customers and drivers from **الزبائن** and **السائقين**
+3. Change your password from **الإعدادات**
 
 - Unauthenticated access to `/dashboard` → redirects to `/`
 - Logout button → returns to `/`
@@ -163,13 +169,13 @@ If login fails, seed the production database (Step 2.1).
 | Issue | Fix |
 |-------|-----|
 | Build fails on `migrate deploy` | Ensure `DATABASE_URL` is set and points to PostgreSQL |
-| Login fails | Run `npm run db:seed` against production `DATABASE_URL`; check `SESSION_SECRET` |
+| Login fails | Run seed with `ADMIN_PHONE`/`ADMIN_PASSWORD`, or check `SESSION_SECRET` |
 | PWA not installable | Must use HTTPS; set `NEXT_PUBLIC_APP_URL` and redeploy |
 | Database empty after deploy | Run Step 2.1 (migrate + seed) against production DB |
 | Local dev after migration | Update `.env` `DATABASE_URL` from `file:./dev.db` to a PostgreSQL URL |
 
 ---
 
-## Demo accounts (after seed)
+## Admin bootstrap
 
-See README.md for login credentials.
+Set `ADMIN_PHONE` (Saudi format `05XXXXXXXX`) and `ADMIN_PASSWORD` when running `npm run db:seed` to create the first admin. After login, manage users from the dashboard.

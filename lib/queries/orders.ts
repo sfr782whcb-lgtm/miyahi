@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import {
+  notifyAdminsNewOrder,
+  notifyCustomerStatusChange,
+  notifyDriverAssigned,
+} from "@/lib/push/order-events";
+import {
   formatOrderId,
   ORDER_STATUS_COLORS,
   ORDER_STATUS_LABELS,
@@ -157,6 +162,11 @@ export async function createOrder(input: {
     });
   }
 
+  void notifyAdminsNewOrder(order.id);
+  if (input.driverId) {
+    void notifyDriverAssigned(order.id, input.driverId);
+  }
+
   return order;
 }
 
@@ -190,6 +200,8 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     }
   }
 
+  void notifyCustomerStatusChange(order.id);
+
   return order;
 }
 
@@ -207,6 +219,10 @@ export async function assignDriverToOrder(orderId: string, driverId: string | nu
       where: { id: driverId },
       data: { status: "BUSY" },
     });
+  }
+
+  if (driverId) {
+    void notifyDriverAssigned(order.id, driverId);
   }
 
   return order;

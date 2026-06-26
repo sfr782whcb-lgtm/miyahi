@@ -2,10 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession, getSession } from "@/lib/auth/session";
 import { getHomeForRole } from "@/lib/auth/routes";
-import { loginSchema } from "@/lib/validations/schemas";
+import {
+  getUserPasswordHash,
+  updateUserPassword,
+} from "@/lib/queries/users";
+import { changePasswordSchema, loginSchema } from "@/lib/validations/schemas";
 
 export async function loginAction(
   formData: FormData,
@@ -47,6 +51,40 @@ export async function loginAction(
 export async function logoutAction() {
   await deleteSession();
   redirect("/");
+}
+
+export async function changePasswordAction(
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  const session = await requireSession();
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  const user = await getUserPasswordHash(session.userId);
+  if (!user) {
+    return { error: "المستخدم غير موجود" };
+  }
+
+  const valid = await verifyPassword(
+    parsed.data.currentPassword,
+    user.passwordHash,
+  );
+  if (!valid) {
+    return { error: "كلمة المرور الحالية غير صحيحة" };
+  }
+
+  const passwordHash = await hashPassword(parsed.data.newPassword);
+  await updateUserPassword(session.userId, passwordHash);
+
+  return { success: true };
 }
 
 export async function requireSession() {

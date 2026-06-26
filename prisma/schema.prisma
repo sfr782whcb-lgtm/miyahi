@@ -28,15 +28,29 @@ enum DriverStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  phone        String    @unique
-  passwordHash String
-  name         String
-  role         UserRole
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  driver       Driver?
-  customer     Customer?
+  id                String             @id @default(cuid())
+  phone             String             @unique
+  passwordHash      String
+  name              String
+  role              UserRole
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  driver            Driver?
+  customer          Customer?
+  pushSubscriptions PushSubscription[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Customer {

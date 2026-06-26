@@ -7,6 +7,8 @@ import {
   updateDriverStatus,
 } from "@/lib/queries/drivers";
 import { hashPassword } from "@/lib/auth/password";
+import { getUniqueConstraintMessage } from "@/lib/prisma-errors";
+import { normalizePhone } from "@/lib/validations/phone";
 import { driverSchema, driverStatusSchema } from "@/lib/validations/schemas";
 
 export async function createDriverAction(formData: FormData) {
@@ -27,11 +29,21 @@ export async function createDriverAction(formData: FormData) {
     passwordHash = await hashPassword(parsed.data.password);
   }
 
-  await createDriverQuery({
-    name: parsed.data.name,
-    phone: parsed.data.phone,
-    passwordHash,
-  });
+  const phone = parsed.data.phone
+    ? normalizePhone(parsed.data.phone)
+    : undefined;
+
+  try {
+    await createDriverQuery({
+      name: parsed.data.name,
+      phone,
+      passwordHash,
+    });
+  } catch (error) {
+    const message = getUniqueConstraintMessage(error);
+    if (message) return { error: message };
+    throw error;
+  }
 
   revalidatePath("/drivers");
   revalidatePath("/orders/new");

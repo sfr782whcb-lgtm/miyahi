@@ -1,17 +1,28 @@
 import { z } from "zod";
+import {
+  normalizePhone,
+  SAUDI_PHONE_MESSAGE,
+  SAUDI_PHONE_REGEX,
+} from "@/lib/validations/phone";
+
+export const passwordSchema = z
+  .string()
+  .min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+
+export const saudiPhoneSchema = z
+  .string()
+  .trim()
+  .transform(normalizePhone)
+  .pipe(z.string().regex(SAUDI_PHONE_REGEX, SAUDI_PHONE_MESSAGE));
 
 export const loginSchema = z.object({
-  phone: z
-    .string()
-    .trim()
-    .min(9, "رقم الهاتف غير صالح")
-    .max(15, "رقم الهاتف غير صالح"),
-  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
+  phone: saudiPhoneSchema,
+  password: passwordSchema,
 });
 
 export const orderSchema = z.object({
   customerName: z.string().trim().min(2, "اسم الزبون مطلوب"),
-  phone: z.string().trim().min(9, "رقم الهاتف غير صالح"),
+  phone: saudiPhoneSchema,
   address: z.string().trim().min(3, "العنوان مطلوب"),
   area: z.string().trim().min(2, "المنطقة مطلوبة"),
   bottles: z.coerce.number().int().min(1, "عدد القوارير يجب أن يكون 1 على الأقل"),
@@ -20,18 +31,68 @@ export const orderSchema = z.object({
   customerId: z.string().optional(),
 });
 
-export const driverSchema = z.object({
-  name: z.string().trim().min(2, "اسم السائق مطلوب"),
-  phone: z.string().trim().min(9, "رقم الهاتف غير صالح").optional(),
-  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل").optional(),
-});
+export const driverSchema = z
+  .object({
+    name: z.string().trim().min(2, "اسم السائق مطلوب"),
+    phone: z.string().trim().optional(),
+    password: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const phone = data.phone ? normalizePhone(data.phone) : "";
+    const hasPhone = phone.length > 0;
+    const password = data.password ?? "";
+    const hasPassword = password.length > 0;
+
+    if (hasPhone && !SAUDI_PHONE_REGEX.test(phone)) {
+      ctx.addIssue({
+        code: "custom",
+        message: SAUDI_PHONE_MESSAGE,
+        path: ["phone"],
+      });
+    }
+
+    if (hasPhone && !hasPassword) {
+      ctx.addIssue({
+        code: "custom",
+        message: "كلمة المرور مطلوبة عند إنشاء حساب دخول",
+        path: ["password"],
+      });
+    }
+
+    if (hasPassword && !hasPhone) {
+      ctx.addIssue({
+        code: "custom",
+        message: "رقم الهاتف مطلوب عند إنشاء حساب دخول",
+        path: ["phone"],
+      });
+    }
+
+    if (hasPassword && password.length < 6) {
+      ctx.addIssue({
+        code: "custom",
+        message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+        path: ["password"],
+      });
+    }
+  });
 
 export const customerSchema = z.object({
   name: z.string().trim().min(2, "اسم الزبون مطلوب"),
-  phone: z.string().trim().min(9, "رقم الهاتف غير صالح"),
+  phone: saudiPhoneSchema,
   address: z.string().trim().optional(),
   area: z.string().trim().optional(),
 });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "كلمة المرور الحالية مطلوبة"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  });
 
 export const productSchema = z.object({
   name: z.string().trim().min(2, "اسم المنتج مطلوب"),

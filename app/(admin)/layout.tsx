@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/app/actions/auth";
 import AdminLayout from "@/components/layouts/admin-layout";
+import PushNotificationPrompt from "@/components/notifications/push-notification-prompt";
 
 export default async function AdminRouteLayout({
   children,
@@ -7,5 +8,10 @@ export default async function AdminRouteLayout({
   children: React.ReactNode;
 }) {
   await requireAdmin();
-  return <AdminLayout>{children}</AdminLayout>;
+  return (
+    <>
+      <PushNotificationPrompt />
+      <AdminLayout>{children}</AdminLayout>
+    </>
+  );
 }

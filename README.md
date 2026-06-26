@@ -7,19 +7,13 @@ Arabic RTL PWA for managing water bottle delivery.
 ```bash
 npm install
 cp .env.example .env   # set DATABASE_URL to your PostgreSQL connection string
-npm run db:setup       # migrate + seed
+npm run db:setup       # migrate + seed (products + optional admin)
 npm run dev
 ```
 
 For local PostgreSQL, use [Neon](https://neon.tech) (free), [Supabase](https://supabase.com), Docker, or a local Postgres install.
 
-## Demo accounts
-
-| Role | Phone | Password |
-|------|-------|----------|
-| Admin | 0500000001 | admin123 |
-| Driver | 0501111111 | driver123 |
-| Customer | 0503333333 | customer123 |
+To create the first admin account during seed, set `ADMIN_PHONE`, `ADMIN_PASSWORD`, and optionally `ADMIN_NAME` in `.env` before running `npm run db:seed`. After that, admins can create customers and drivers from the dashboard.
 
 ## Scripts
 
@@ -30,7 +24,7 @@ For local PostgreSQL, use [Neon](https://neon.tech) (free), [Supabase](https://s
 | `npm run start` | Production server |
 | `npm run db:setup` | Migrate + seed database |
 | `npm run db:migrate` | Run Prisma migrations (dev) |
-| `npm run db:seed` | Seed demo data |
+| `npm run db:seed` | Seed products and optional admin user |
 | `npm run db:reset` | Reset database and re-seed |
 | `npm run generate:icons` | Regenerate PWA icons |
 
@@ -41,6 +35,8 @@ Copy `.env.example` to `.env`:
 - `DATABASE_URL` — PostgreSQL connection string
 - `SESSION_SECRET` — min 32 chars for JWT session cookies
 - `NEXT_PUBLIC_APP_URL` — app URL for deployment
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — Web Push notifications (run `npm run generate:vapid`)
+- `ADMIN_PHONE`, `ADMIN_PASSWORD`, `ADMIN_NAME` — optional, creates first admin during seed
 
 ## PWA
 
@@ -51,6 +47,7 @@ npm run build && npm start
 ```
 
 - Install on Android (Chrome) or iOS (Safari → Add to Home Screen)
+- Enable push notifications from the in-app banner after login
 - Offline fallback at `/~offline`
 - Service worker via Serwist at `/serwist/sw.js`
 

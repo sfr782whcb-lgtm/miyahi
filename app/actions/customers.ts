@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/app/actions/auth";
 import { createCustomer as createCustomerQuery } from "@/lib/queries/customers";
 import { hashPassword } from "@/lib/auth/password";
-import { customerSchema } from "@/lib/validations/schemas";
+import { getUniqueConstraintMessage } from "@/lib/prisma-errors";
+import { customerSchema, passwordSchema } from "@/lib/validations/schemas";
 
 export async function createCustomerAction(formData: FormData) {
   await requireAdmin();
@@ -25,16 +26,27 @@ export async function createCustomerAction(formData: FormData) {
 
   let passwordHash: string | undefined;
   if (createAccount) {
-    if (password.length < 6) {
-      return { error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" };
+    const passwordParsed = passwordSchema.safeParse(password);
+    if (!passwordParsed.success) {
+      return {
+        error:
+          passwordParsed.error.issues[0]?.message ??
+          "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+      };
     }
-    passwordHash = await hashPassword(password);
+    passwordHash = await hashPassword(passwordParsed.data);
   }
 
-  await createCustomerQuery({
-    ...parsed.data,
-    passwordHash,
-  });
+  try {
+    await createCustomerQuery({
+      ...parsed.data,
+      passwordHash,
+    });
+  } catch (error) {
+    const message = getUniqueConstraintMessage(error);
+    if (message) return { error: message };
+    throw error;
+  }
 
   revalidatePath("/customers");
 
