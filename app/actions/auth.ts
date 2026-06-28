@@ -11,11 +11,17 @@ import {
 } from "@/lib/queries/users";
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
 } from "@/lib/validations/schemas";
 import { getUniqueConstraintMessage } from "@/lib/prisma-errors";
 import { registerCustomer } from "@/lib/queries/customers";
+import {
+  createPasswordResetToken,
+  resetPasswordWithToken,
+} from "@/lib/queries/password-reset";
 import type { UserRole } from "@prisma/client";
 import type { SessionPayload } from "@/lib/auth/session";
 import {
@@ -23,8 +29,6 @@ import {
   getCompanyAccessError,
   resolveEffectiveCompanyStatus,
 } from "@/lib/tenant/company";
-
-const DEFAULT_COMPANY_SLUG = "default";
 
 async function findLoginUser(phone: string, companySlug: string) {
   if (companySlug === "platform") {
@@ -73,21 +77,25 @@ function buildSessionFromUser(user: {
   };
 }
 
+function getAppBaseUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+}
+
 export async function loginAction(
   formData: FormData,
 ): Promise<{ error: string } | void> {
   const parsed = loginSchema.safeParse({
     phone: formData.get("phone"),
     password: formData.get("password"),
-    companySlug: formData.get("companySlug") || DEFAULT_COMPANY_SLUG,
+    companySlug: formData.get("companySlug"),
+    remember: formData.get("remember") === "on",
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
   }
 
-  const companySlug = parsed.data.companySlug || DEFAULT_COMPANY_SLUG;
-  const user = await findLoginUser(parsed.data.phone, companySlug);
+  const user = await findLoginUser(parsed.data.phone, parsed.data.companySlug);
 
   if (!user) {
     return { error: "رقم الهاتف أو كلمة المرور غير صحيحة" };
@@ -107,15 +115,20 @@ export async function loginAction(
     }
   }
 
-  await createSession(buildSessionFromUser(user));
+  await createSession(buildSessionFromUser(user), {
+    remember: parsed.data.remember,
+  });
   redirect(getHomeForRole(user.role));
 }
 
 export async function registerAction(
   formData: FormData,
 ): Promise<{ error: string } | void> {
-  const companySlug =
-    String(formData.get("companySlug") ?? "").trim() || DEFAULT_COMPANY_SLUG;
+  const companySlug = String(formData.get("companySlug") ?? "").trim();
+
+  if (!companySlug) {
+    return { error: "رمز الشركة مطلوب" };
+  }
 
   const company = await prisma.company.findUnique({
     where: { slug: companySlug },
@@ -163,16 +176,75 @@ export async function registerAction(
     throw error;
   }
 
-  await createSession({
-    userId: result.user.id,
-    role: "CUSTOMER",
-    name: result.user.name,
-    companyId: company.id,
-    companySlug: company.slug,
-    customerId: result.customer.id,
-  });
+  await createSession(
+    {
+      userId: result.user.id,
+      role: "CUSTOMER",
+      name: result.user.name,
+      companyId: company.id,
+      companySlug: company.slug,
+      customerId: result.customer.id,
+    },
+    { remember: true },
+  );
 
   redirect("/customer");
+}
+
+export async function forgotPasswordAction(
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean; resetUrl?: string }> {
+  const parsed = forgotPasswordSchema.safeParse({
+    phone: formData.get("phone"),
+    companySlug: formData.get("companySlug"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  const user = await findLoginUser(parsed.data.phone, parsed.data.companySlug);
+
+  if (user) {
+    const { token } = await createPasswordResetToken(user.id);
+    const resetUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[password-reset]", resetUrl);
+      return {
+        success: true,
+        resetUrl,
+      };
+    }
+  }
+
+  return { success: true };
+}
+
+export async function resetPasswordAction(
+  formData: FormData,
+): Promise<{ error: string } | void> {
+  const parsed = resetPasswordSchema.safeParse({
+    token: formData.get("token"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  try {
+    const user = await resetPasswordWithToken(
+      parsed.data.token,
+      parsed.data.newPassword,
+    );
+
+    await createSession(buildSessionFromUser(user), { remember: true });
+    redirect(getHomeForRole(user.role));
+  } catch {
+    return { error: "رابط إعادة التعيين غير صالح أو منتهي الصلاحية" };
+  }
 }
 
 export async function logoutAction() {

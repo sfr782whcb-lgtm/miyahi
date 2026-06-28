@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import type { UserRole } from "@prisma/client";
-import { getSessionSecret, SESSION_COOKIE, SESSION_MAX_AGE } from "./config";
+import {
+  getSessionSecret,
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  SESSION_REMEMBER_MAX_AGE,
+} from "./config";
 
 export type SessionPayload = {
   userId: string;
@@ -13,15 +18,24 @@ export type SessionPayload = {
   customerId?: string;
 };
 
+type CreateSessionOptions = {
+  remember?: boolean;
+};
+
 function getSecretKey() {
   return new TextEncoder().encode(getSessionSecret());
 }
 
-export async function createSession(payload: SessionPayload) {
+export async function createSession(
+  payload: SessionPayload,
+  options?: CreateSessionOptions,
+) {
+  const maxAge = options?.remember ? SESSION_REMEMBER_MAX_AGE : SESSION_MAX_AGE;
+
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE}s`)
+    .setExpirationTime(`${maxAge}s`)
     .sign(getSecretKey());
 
   const cookieStore = await cookies();
@@ -30,7 +44,7 @@ export async function createSession(payload: SessionPayload) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
   });
 }
 

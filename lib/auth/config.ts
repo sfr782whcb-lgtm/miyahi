@@ -1,5 +1,6 @@
 export const SESSION_COOKIE = "miyyahi_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+export const SESSION_REMEMBER_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export function getSessionSecret() {
   const secret = process.env.SESSION_SECRET;

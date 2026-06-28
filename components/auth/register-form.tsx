@@ -7,7 +7,17 @@ import { registerAction } from "@/app/actions/auth";
 import { buttonPrimaryClassName, inputClassName } from "@/lib/constants";
 import { SAUDI_PHONE_MESSAGE } from "@/lib/validations/phone";
 
-export default function RegisterForm() {
+type RegisterFormProps = {
+  companySlug: string;
+  companyName?: string;
+  loginHref?: string;
+};
+
+export default function RegisterForm({
+  companySlug,
+  companyName,
+  loginHref = "/login",
+}: RegisterFormProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
@@ -21,10 +31,12 @@ export default function RegisterForm() {
 
   return (
     <div className="animate-fade-in rounded-2xl border border-emerald-100 bg-white p-8 shadow-xl shadow-emerald-900/5">
-      <h2 className="mb-2 text-xl font-semibold text-gray-900">إنشاء حساب</h2>
-      <p className="mb-6 text-sm text-gray-500">سجّل كزبون لطلب قوارير المياه</p>
+      <h2 className="mb-2 text-xl font-semibold text-gray-900">إنشاء حساب زبون</h2>
+      <p className="mb-6 text-sm text-gray-500">
+        {companyName ? `التسجيل في ${companyName}` : "سجّل لطلب قوارير المياه"}
+      </p>
       <form action={handleSubmit} className="space-y-4">
-        <input type="hidden" name="companySlug" value="default" />
+        <input type="hidden" name="companySlug" value={companySlug} />
         <div>
           <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-700">
             الاسم
@@ -55,7 +67,6 @@ export default function RegisterForm() {
             required
             className={inputClassName}
           />
-          <p className="mt-1 text-xs text-gray-500">{SAUDI_PHONE_MESSAGE}</p>
         </div>
         <input name="address" placeholder="العنوان (اختياري)" className={inputClassName} />
         <input name="area" placeholder="المنطقة (اختياري)" className={inputClassName} />
@@ -93,7 +104,7 @@ export default function RegisterForm() {
       </form>
       <p className="mt-5 text-center text-sm text-gray-600">
         لديك حساب بالفعل؟{" "}
-        <Link href="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
+        <Link href={loginHref} className="font-semibold text-emerald-600 hover:text-emerald-700">
           تسجيل الدخول
         </Link>
       </p>

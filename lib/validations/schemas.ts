@@ -4,6 +4,18 @@ import {
   SAUDI_PHONE_MESSAGE,
   SAUDI_PHONE_REGEX,
 } from "@/lib/validations/phone";
+import { isReservedCompanySlug } from "@/lib/validations/slug";
+
+export const companySlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "رمز الشركة يجب أن يكون 3 أحرف على الأقل")
+  .max(48, "رمز الشركة طويل جداً")
+  .regex(/^[a-z0-9-]+$/, "استخدم أحرفاً إنجليزية صغيرة وأرقام وشرطات فقط")
+  .refine((slug) => !isReservedCompanySlug(slug), {
+    message: "رمز الشركة محجوز، اختر رمزاً آخر",
+  });
 
 export const passwordSchema = z
   .string()
@@ -15,11 +27,49 @@ export const saudiPhoneSchema = z
   .transform(normalizePhone)
   .pipe(z.string().regex(SAUDI_PHONE_REGEX, SAUDI_PHONE_MESSAGE));
 
+export const loginCompanySlugSchema = z.union([
+  z.literal("platform"),
+  companySlugSchema,
+]);
+
 export const loginSchema = z.object({
   phone: saudiPhoneSchema,
   password: passwordSchema,
-  companySlug: z.string().trim().min(1).optional(),
+  companySlug: loginCompanySlugSchema,
+  remember: z.boolean().optional(),
 });
+
+export const forgotPasswordSchema = z.object({
+  phone: saudiPhoneSchema,
+  companySlug: companySlugSchema,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "رمز إعادة التعيين مطلوب"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  });
+
+export const companyRegisterSchema = z
+  .object({
+    companyName: z.string().trim().min(2, "اسم الشركة مطلوب"),
+    companySlug: companySlugSchema,
+    adminName: z.string().trim().min(2, "اسم المدير مطلوب"),
+    phone: saudiPhoneSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
+    companyPhone: z.string().trim().optional(),
+    address: z.string().trim().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  });
 
 export const orderSchema = z.object({
   customerName: z.string().trim().min(2, "اسم الزبون مطلوب"),

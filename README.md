@@ -17,11 +17,18 @@ To create the first admin account during seed, set `ADMIN_PHONE`, `ADMIN_PASSWOR
 
 ## Authentication
 
-- **Customers** — self-register at `/register` (phone + password)
-- **Admins** — created via seed env vars or by another admin
-- **Drivers** — created by admin from the dashboard (with optional login account)
-- **Login** — `/login` (httpOnly JWT session cookie, 7 days)
+- **Water companies** — register at `/register/company` (14-day free trial, creates admin + default products)
+- **Customers** — register at `/register` or `/c/{company-slug}/register`
+- **Login** — `/login` (enter company slug) or `/c/{company-slug}/login`
+- **Forgot password** — `/forgot-password` → `/reset-password?token=...`
+- **Remember me** — 30-day session when checked (default session: 7 days)
+- **Super admin** — login with company slug `platform`
 - **Logout** — available in all role layouts
+
+Run migration after pull:
+```bash
+npx prisma migrate deploy
+```
 
 ## Scripts
 
