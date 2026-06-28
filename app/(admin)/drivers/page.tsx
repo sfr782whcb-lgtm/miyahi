@@ -1,13 +1,15 @@
 import PageHeader from "@/components/ui/page-header";
+import { requireAdmin } from "@/app/actions/auth";
 import { getActiveDriversCount, getDrivers } from "@/lib/queries/drivers";
 import { AddDriverForm, DriverStatusSelect } from "./driver-forms";
 
 export const dynamic = "force-dynamic";
 
 export default async function DriversPage() {
+  const session = await requireAdmin();
   const [drivers, activeCount] = await Promise.all([
-    getDrivers(),
-    getActiveDriversCount(),
+    getDrivers(session.companyId),
+    getActiveDriversCount(session.companyId),
   ]);
 
   return (

@@ -18,6 +18,7 @@ export const saudiPhoneSchema = z
 export const loginSchema = z.object({
   phone: saudiPhoneSchema,
   password: passwordSchema,
+  companySlug: z.string().trim().min(1).optional(),
 });
 
 export const orderSchema = z.object({
@@ -82,6 +83,20 @@ export const customerSchema = z.object({
   address: z.string().trim().optional(),
   area: z.string().trim().optional(),
 });
+
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(2, "الاسم مطلوب"),
+    phone: saudiPhoneSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
+    address: z.string().trim().optional(),
+    area: z.string().trim().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "كلمتا المرور غير متطابقتين",
+    path: ["confirmPassword"],
+  });
 
 export const changePasswordSchema = z
   .object({

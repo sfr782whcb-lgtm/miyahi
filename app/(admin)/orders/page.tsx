@@ -6,6 +6,7 @@ import OrderCard from "@/components/orders/order-card";
 import OrderFilters from "@/components/orders/order-filters";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { getOrders } from "@/lib/queries/orders";
+import { requireAdmin } from "@/app/actions/auth";
 import type { OrderStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +16,9 @@ type Props = {
 };
 
 async function OrdersList({ searchParams }: Props) {
+  const session = await requireAdmin();
   const params = await searchParams;
-  const orders = await getOrders({
+  const orders = await getOrders(session.companyId, {
     search: params.search,
     status: params.status as OrderStatus | undefined,
     sort: (params.sort as "newest" | "oldest" | "price") ?? "newest",
@@ -42,7 +44,8 @@ async function OrdersList({ searchParams }: Props) {
 }
 
 export default async function OrdersPage({ searchParams }: Props) {
-  const orders = await getOrders();
+  const session = await requireAdmin();
+  const orders = await getOrders(session.companyId);
 
   return (
     <>

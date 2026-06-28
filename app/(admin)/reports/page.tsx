@@ -1,11 +1,13 @@
 import PageHeader from "@/components/ui/page-header";
 import EmptyState from "@/components/ui/empty-state";
+import { requireAdmin } from "@/app/actions/auth";
 import { getReportsData } from "@/lib/queries/reports";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  const { monthStats, topAreas, bestDriver } = await getReportsData();
+  const session = await requireAdmin();
+  const { monthStats, topAreas, bestDriver } = await getReportsData(session.companyId);
 
   return (
     <>

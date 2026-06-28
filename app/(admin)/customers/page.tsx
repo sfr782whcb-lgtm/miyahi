@@ -1,12 +1,14 @@
 import PageHeader from "@/components/ui/page-header";
 import EmptyState from "@/components/ui/empty-state";
+import { requireAdmin } from "@/app/actions/auth";
 import { getCustomers } from "@/lib/queries/customers";
 import AddCustomerForm from "./add-customer-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const customers = await getCustomers();
+  const session = await requireAdmin();
+  const customers = await getCustomers(session.companyId);
 
   return (
     <>

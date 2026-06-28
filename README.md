@@ -15,6 +15,14 @@ For local PostgreSQL, use [Neon](https://neon.tech) (free), [Supabase](https://s
 
 To create the first admin account during seed, set `ADMIN_PHONE`, `ADMIN_PASSWORD`, and optionally `ADMIN_NAME` in `.env` before running `npm run db:seed`. After that, admins can create customers and drivers from the dashboard.
 
+## Authentication
+
+- **Customers** — self-register at `/register` (phone + password)
+- **Admins** — created via seed env vars or by another admin
+- **Drivers** — created by admin from the dashboard (with optional login account)
+- **Login** — `/login` (httpOnly JWT session cookie, 7 days)
+- **Logout** — available in all role layouts
+
 ## Scripts
 
 | Command | Description |

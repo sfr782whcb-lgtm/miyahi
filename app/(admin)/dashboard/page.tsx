@@ -3,6 +3,7 @@ import LogoutButton from "@/components/ui/logout-button";
 import PageHeader from "@/components/ui/page-header";
 import EmptyState from "@/components/ui/empty-state";
 import { getDashboardData } from "@/lib/queries/orders";
+import { requireAdmin } from "@/app/actions/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,8 @@ function StatIcon({ type }: { type: string }) {
 }
 
 export default async function DashboardPage() {
-  const { stats, recentOrders } = await getDashboardData();
+  const session = await requireAdmin();
+  const { stats, recentOrders } = await getDashboardData(session.companyId);
 
   const statCards = [
     { label: "طلبات اليوم", value: String(stats.todayTotal), icon: "orders" },

@@ -1,12 +1,14 @@
 import PageHeader from "@/components/ui/page-header";
 import EmptyState from "@/components/ui/empty-state";
+import { requireAdmin } from "@/app/actions/auth";
 import { getProducts } from "@/lib/queries/products";
 import { AddProductForm, ProductToggle } from "./product-forms";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const products = await getProducts();
+  const session = await requireAdmin();
+  const products = await getProducts(session.companyId);
 
   return (
     <>

@@ -8,7 +8,7 @@ import { getUniqueConstraintMessage } from "@/lib/prisma-errors";
 import { customerSchema, passwordSchema } from "@/lib/validations/schemas";
 
 export async function createCustomerAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = customerSchema.safeParse({
     name: formData.get("name"),
@@ -39,6 +39,7 @@ export async function createCustomerAction(formData: FormData) {
 
   try {
     await createCustomerQuery({
+      companyId: session.companyId,
       ...parsed.data,
       passwordHash,
     });

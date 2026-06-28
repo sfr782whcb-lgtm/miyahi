@@ -10,10 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function CustomerPage() {
   const session = await requireCustomer();
   const [orders, products, customer] = await Promise.all([
-    getOrders({ customerId: session.customerId }),
-    getProducts(true),
+    getOrders(session.companyId, { customerId: session.customerId }),
+    getProducts(session.companyId, true),
     session.customerId
-      ? prisma.customer.findUnique({ where: { id: session.customerId } })
+      ? prisma.customer.findFirst({
+          where: { id: session.customerId, companyId: session.companyId },
+        })
       : null,
   ]);
 

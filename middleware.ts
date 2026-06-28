@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import {
   canAccessPath,
   getHomeForRole,
+  isAuthPage,
   isPublicPath,
 } from "@/lib/auth/routes";
 import { verifySessionToken } from "@/lib/auth/session";
@@ -13,7 +14,7 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
-    if (token && pathname === "/") {
+    if (token && isAuthPage(pathname)) {
       const session = await verifySessionToken(token);
       if (session) {
         return NextResponse.redirect(
@@ -26,12 +27,12 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const session = await verifySessionToken(token);
   if (!session) {
-    const response = NextResponse.redirect(new URL("/", request.url));
+    const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete(SESSION_COOKIE);
     return response;
   }

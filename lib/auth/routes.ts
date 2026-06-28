@@ -1,6 +1,10 @@
 import type { UserRole } from "@prisma/client";
 
-export const PUBLIC_PATHS = ["/", "/~offline"] as const;
+export const PUBLIC_PATHS = ["/", "/login", "/register", "/~offline"] as const;
+
+export const AUTH_PAGES = ["/", "/login", "/register"] as const;
+
+export const PLATFORM_PREFIXES = ["/platform"] as const;
 
 export const ADMIN_PREFIXES = [
   "/dashboard",
@@ -17,6 +21,8 @@ export const CUSTOMER_PREFIXES = ["/customer"] as const;
 
 export function getHomeForRole(role: UserRole) {
   switch (role) {
+    case "SUPER_ADMIN":
+      return "/platform";
     case "ADMIN":
       return "/dashboard";
     case "DRIVER":
@@ -24,8 +30,12 @@ export function getHomeForRole(role: UserRole) {
     case "CUSTOMER":
       return "/customer";
     default:
-      return "/";
+      return "/login";
   }
+}
+
+export function isAuthPage(pathname: string) {
+  return AUTH_PAGES.includes(pathname as (typeof AUTH_PAGES)[number]);
 }
 
 export function isPublicPath(pathname: string) {
@@ -38,6 +48,12 @@ export function isPublicPath(pathname: string) {
     pathname.endsWith(".png") ||
     pathname.endsWith(".svg") ||
     pathname.endsWith(".ico")
+  );
+}
+
+export function isPlatformPath(pathname: string) {
+  return PLATFORM_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
 
@@ -60,6 +76,7 @@ export function isCustomerPath(pathname: string) {
 }
 
 export function canAccessPath(role: UserRole, pathname: string) {
+  if (isPlatformPath(pathname)) return role === "SUPER_ADMIN";
   if (isAdminPath(pathname)) return role === "ADMIN";
   if (isDriverPath(pathname)) return role === "DRIVER";
   if (isCustomerPath(pathname)) return role === "CUSTOMER";

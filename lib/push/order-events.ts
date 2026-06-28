@@ -7,9 +7,9 @@ import {
   getDriverUserId,
 } from "@/lib/push/subscriptions";
 
-async function getOrderNotificationContext(orderId: string) {
-  return prisma.order.findUnique({
-    where: { id: orderId },
+async function getOrderNotificationContext(companyId: string, orderId: string) {
+  return prisma.order.findFirst({
+    where: { id: orderId, companyId },
     select: {
       id: true,
       customerName: true,
@@ -21,11 +21,14 @@ async function getOrderNotificationContext(orderId: string) {
   });
 }
 
-export async function notifyAdminsNewOrder(orderId: string): Promise<void> {
+export async function notifyAdminsNewOrder(
+  companyId: string,
+  orderId: string,
+): Promise<void> {
   try {
     const [order, adminIds] = await Promise.all([
-      getOrderNotificationContext(orderId),
-      getAdminUserIds(),
+      getOrderNotificationContext(companyId, orderId),
+      getAdminUserIds(companyId),
     ]);
 
     if (!order || adminIds.length === 0) return;
@@ -42,13 +45,14 @@ export async function notifyAdminsNewOrder(orderId: string): Promise<void> {
 }
 
 export async function notifyDriverAssigned(
+  companyId: string,
   orderId: string,
   driverId: string,
 ): Promise<void> {
   try {
     const [order, driverUserId] = await Promise.all([
-      getOrderNotificationContext(orderId),
-      getDriverUserId(driverId),
+      getOrderNotificationContext(companyId, orderId),
+      getDriverUserId(companyId, driverId),
     ]);
 
     if (!order || !driverUserId) return;
@@ -64,12 +68,15 @@ export async function notifyDriverAssigned(
   }
 }
 
-export async function notifyCustomerStatusChange(orderId: string): Promise<void> {
+export async function notifyCustomerStatusChange(
+  companyId: string,
+  orderId: string,
+): Promise<void> {
   try {
-    const order = await getOrderNotificationContext(orderId);
+    const order = await getOrderNotificationContext(companyId, orderId);
     if (!order?.customerId) return;
 
-    const customerUserId = await getCustomerUserId(order.customerId);
+    const customerUserId = await getCustomerUserId(companyId, order.customerId);
     if (!customerUserId) return;
 
     await sendPushToUser(customerUserId, {

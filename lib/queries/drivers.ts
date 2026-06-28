@@ -4,6 +4,7 @@ import {
   DRIVER_STATUS_LABELS,
   startOfToday,
 } from "@/lib/constants";
+import { tenantFilter } from "@/lib/tenant/context";
 import type { DriverStatus, Prisma } from "@prisma/client";
 
 export type DriverFilters = {
@@ -12,9 +13,11 @@ export type DriverFilters = {
   sort?: "name" | "orders";
 };
 
-export async function getDrivers(filters?: DriverFilters) {
+export async function getDrivers(companyId: string, filters?: DriverFilters) {
   const today = startOfToday();
-  const where: Prisma.DriverWhereInput = {};
+  const where: Prisma.DriverWhereInput = {
+    ...tenantFilter(companyId),
+  };
 
   if (filters?.status) where.status = filters.status;
   if (filters?.search) {
@@ -26,7 +29,7 @@ export async function getDrivers(filters?: DriverFilters) {
     orderBy: { name: filters?.sort === "name" ? "asc" : "asc" },
     include: {
       orders: {
-        where: { createdAt: { gte: today } },
+        where: { createdAt: { gte: today }, companyId },
         select: { id: true },
       },
     },
@@ -48,33 +51,35 @@ export async function getDrivers(filters?: DriverFilters) {
   return mapped;
 }
 
-export async function getActiveDriversCount() {
+export async function getActiveDriversCount(companyId: string) {
   return prisma.driver.count({
-    where: { status: { not: "OFFLINE" } },
+    where: { ...tenantFilter(companyId), status: { not: "OFFLINE" } },
   });
 }
 
-export async function getAvailableDrivers() {
+export async function getAvailableDrivers(companyId: string) {
   return prisma.driver.findMany({
-    where: { status: "AVAILABLE" },
+    where: { ...tenantFilter(companyId), status: "AVAILABLE" },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
 }
 
 export async function createDriver(input: {
+  companyId: string;
   name: string;
   phone?: string;
   passwordHash?: string;
 }) {
   return prisma.$transaction(async (tx) => {
     const driver = await tx.driver.create({
-      data: { name: input.name },
+      data: { companyId: input.companyId, name: input.name },
     });
 
     if (input.phone && input.passwordHash) {
       await tx.user.create({
         data: {
+          companyId: input.companyId,
           phone: input.phone,
           passwordHash: input.passwordHash,
           name: input.name,
@@ -88,9 +93,13 @@ export async function createDriver(input: {
   });
 }
 
-export async function updateDriverStatus(id: string, status: DriverStatus) {
-  return prisma.driver.update({
-    where: { id },
+export async function updateDriverStatus(
+  companyId: string,
+  id: string,
+  status: DriverStatus,
+) {
+  return prisma.driver.updateMany({
+    where: { id, companyId },
     data: { status },
   });
 }

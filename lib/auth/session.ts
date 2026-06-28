@@ -7,6 +7,8 @@ export type SessionPayload = {
   userId: string;
   role: UserRole;
   name: string;
+  companyId?: string;
+  companySlug?: string;
   driverId?: string;
   customerId?: string;
 };

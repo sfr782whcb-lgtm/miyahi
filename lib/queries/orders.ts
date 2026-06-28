@@ -10,6 +10,7 @@ import {
   ORDER_STATUS_LABELS,
   startOfToday,
 } from "@/lib/constants";
+import { tenantFilter } from "@/lib/tenant/context";
 import type { OrderStatus, Prisma } from "@prisma/client";
 
 export type OrderFilters = {
@@ -21,8 +22,13 @@ export type OrderFilters = {
   customerPhone?: string;
 };
 
-function buildOrderWhere(filters?: OrderFilters): Prisma.OrderWhereInput {
-  const where: Prisma.OrderWhereInput = {};
+function buildOrderWhere(
+  companyId: string,
+  filters?: OrderFilters,
+): Prisma.OrderWhereInput {
+  const where: Prisma.OrderWhereInput = {
+    ...tenantFilter(companyId),
+  };
 
   if (filters?.status) where.status = filters.status;
   if (filters?.driverId) where.driverId = filters.driverId;
@@ -86,18 +92,26 @@ export function mapOrder(order: {
   };
 }
 
-export async function getDashboardData() {
+export async function getDashboardData(companyId: string) {
   const today = startOfToday();
 
   const [todayOrders, recentOrders] = await Promise.all([
     prisma.order.findMany({
-      where: { createdAt: { gte: today }, status: { not: "CANCELLED" } },
+      where: {
+        ...tenantFilter(companyId),
+        createdAt: { gte: today },
+        status: { not: "CANCELLED" },
+      },
       select: { status: true, price: true },
     }),
     prisma.order.findMany({
+      where: tenantFilter(companyId),
       orderBy: { createdAt: "desc" },
       take: 3,
-      include: { driver: { select: { id: true, name: true } }, product: { select: { name: true } } },
+      include: {
+        driver: { select: { id: true, name: true } },
+        product: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -112,9 +126,9 @@ export async function getDashboardData() {
   };
 }
 
-export async function getOrders(filters?: OrderFilters) {
+export async function getOrders(companyId: string, filters?: OrderFilters) {
   const orders = await prisma.order.findMany({
-    where: buildOrderWhere(filters),
+    where: buildOrderWhere(companyId, filters),
     orderBy: buildOrderOrderBy(filters?.sort),
     include: {
       driver: { select: { id: true, name: true } },
@@ -126,6 +140,7 @@ export async function getOrders(filters?: OrderFilters) {
 }
 
 export async function createOrder(input: {
+  companyId: string;
   customerName: string;
   phone: string;
   address: string;
@@ -141,6 +156,7 @@ export async function createOrder(input: {
 
   const order = await prisma.order.create({
     data: {
+      companyId: input.companyId,
       customerName: input.customerName,
       phone: input.phone,
       address: input.address,
@@ -156,21 +172,34 @@ export async function createOrder(input: {
   });
 
   if (input.driverId) {
-    await prisma.driver.update({
-      where: { id: input.driverId },
+    await prisma.driver.updateMany({
+      where: { id: input.driverId, companyId: input.companyId },
       data: { status: "BUSY" },
     });
   }
 
-  void notifyAdminsNewOrder(order.id);
+  void notifyAdminsNewOrder(input.companyId, order.id);
   if (input.driverId) {
-    void notifyDriverAssigned(order.id, input.driverId);
+    void notifyDriverAssigned(input.companyId, order.id, input.driverId);
   }
 
   return order;
 }
 
-export async function updateOrderStatus(id: string, status: OrderStatus) {
+export async function updateOrderStatus(
+  companyId: string,
+  id: string,
+  status: OrderStatus,
+) {
+  const existing = await prisma.order.findFirst({
+    where: { id, companyId },
+    include: { driver: true },
+  });
+
+  if (!existing) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
   const order = await prisma.order.update({
     where: { id },
     data: { status },
@@ -181,31 +210,44 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     if (status === "DELIVERED" || status === "CANCELLED") {
       const activeCount = await prisma.order.count({
         where: {
+          companyId,
           driverId: order.driverId,
           status: "OUT_FOR_DELIVERY",
           id: { not: id },
         },
       });
       if (activeCount === 0) {
-        await prisma.driver.update({
-          where: { id: order.driverId },
+        await prisma.driver.updateMany({
+          where: { id: order.driverId, companyId },
           data: { status: "AVAILABLE" },
         });
       }
     } else if (status === "OUT_FOR_DELIVERY") {
-      await prisma.driver.update({
-        where: { id: order.driverId },
+      await prisma.driver.updateMany({
+        where: { id: order.driverId, companyId },
         data: { status: "BUSY" },
       });
     }
   }
 
-  void notifyCustomerStatusChange(order.id);
+  void notifyCustomerStatusChange(companyId, order.id);
 
   return order;
 }
 
-export async function assignDriverToOrder(orderId: string, driverId: string | null) {
+export async function assignDriverToOrder(
+  companyId: string,
+  orderId: string,
+  driverId: string | null,
+) {
+  const existing = await prisma.order.findFirst({
+    where: { id: orderId, companyId },
+  });
+
+  if (!existing) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
   const order = await prisma.order.update({
     where: { id: orderId },
     data: {
@@ -215,14 +257,11 @@ export async function assignDriverToOrder(orderId: string, driverId: string | nu
   });
 
   if (driverId) {
-    await prisma.driver.update({
-      where: { id: driverId },
+    await prisma.driver.updateMany({
+      where: { id: driverId, companyId },
       data: { status: "BUSY" },
     });
-  }
-
-  if (driverId) {
-    void notifyDriverAssigned(order.id, driverId);
+    void notifyDriverAssigned(companyId, order.id, driverId);
   }
 
   return order;

@@ -8,9 +8,17 @@ datasource db {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   DRIVER
   CUSTOMER
+}
+
+enum CompanyStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  EXPIRED
 }
 
 enum OrderStatus {
@@ -27,9 +35,33 @@ enum DriverStatus {
   OFFLINE
 }
 
+model Company {
+  id                 String        @id @default(cuid())
+  name               String
+  slug               String        @unique
+  phone              String?
+  address            String?
+  logoUrl            String?
+  primaryColor       String        @default("#059669")
+  status             CompanyStatus @default(TRIAL)
+  trialEndsAt        DateTime?
+  subscriptionEndsAt DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  users              User[]
+  customers          Customer[]
+  drivers            Driver[]
+  products           Product[]
+  orders             Order[]
+
+  @@index([status])
+}
+
 model User {
   id                String             @id @default(cuid())
-  phone             String             @unique
+  companyId         String?
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phone             String
   passwordHash      String
   name              String
   role              UserRole
@@ -38,6 +70,10 @@ model User {
   driver            Driver?
   customer          Customer?
   pushSubscriptions PushSubscription[]
+
+  @@unique([companyId, phone])
+  @@index([companyId])
+  @@index([role])
 }
 
 model PushSubscription {
@@ -55,19 +91,26 @@ model PushSubscription {
 
 model Customer {
   id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId    String?  @unique
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   name      String
-  phone     String   @unique
+  phone     String
   address   String?
   area      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+
+  @@unique([companyId, phone])
+  @@index([companyId])
 }
 
 model Driver {
   id        String       @id @default(cuid())
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId    String?      @unique
   user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   name      String
@@ -75,10 +118,15 @@ model Driver {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   orders    Order[]
+
+  @@index([companyId])
+  @@index([companyId, status])
 }
 
 model Product {
   id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name       String
   sizeLiters Int
   price      Float
@@ -86,10 +134,16 @@ model Product {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   orders     Order[]
+
+  @@unique([companyId, name, sizeLiters])
+  @@index([companyId])
+  @@index([companyId, isActive])
 }
 
 model Order {
   id           String      @id @default(cuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customerId   String?
   customer     Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName String
@@ -106,4 +160,10 @@ model Order {
   driver       Driver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, driverId])
+  @@index([companyId, customerId])
 }

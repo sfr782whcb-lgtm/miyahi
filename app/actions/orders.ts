@@ -12,7 +12,7 @@ import { getProducts } from "@/lib/queries/products";
 import { orderSchema, orderStatusSchema } from "@/lib/validations/schemas";
 
 export async function createOrderAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = orderSchema.safeParse({
     customerName: formData.get("customerName"),
@@ -29,13 +29,14 @@ export async function createOrderAction(formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
   }
 
-  const products = await getProducts(true);
+  const products = await getProducts(session.companyId, true);
   const product = products.find((p) => p.id === parsed.data.productId);
   if (!product) {
     return { error: "المنتج غير موجود" };
   }
 
   await createOrderQuery({
+    companyId: session.companyId,
     ...parsed.data,
     bottleSize: product.sizeLiters,
     price: parsed.data.bottles * product.price,
@@ -51,7 +52,7 @@ export async function createOrderAction(formData: FormData) {
 }
 
 export async function updateOrderStatusAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const orderId = String(formData.get("orderId") ?? "");
   const statusParsed = orderStatusSchema.safeParse(formData.get("status"));
@@ -60,7 +61,11 @@ export async function updateOrderStatusAction(formData: FormData) {
     return { error: "بيانات غير صالحة" };
   }
 
-  await updateOrderStatus(orderId, statusParsed.data);
+  try {
+    await updateOrderStatus(session.companyId, orderId, statusParsed.data);
+  } catch {
+    return { error: "الطلب غير موجود" };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/orders");
@@ -73,14 +78,18 @@ export async function updateOrderStatusAction(formData: FormData) {
 }
 
 export async function assignDriverAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const orderId = String(formData.get("orderId") ?? "");
   const driverId = String(formData.get("driverId") ?? "") || null;
 
   if (!orderId) return { error: "معرف الطلب مطلوب" };
 
-  await assignDriverToOrder(orderId, driverId);
+  try {
+    await assignDriverToOrder(session.companyId, orderId, driverId);
+  } catch {
+    return { error: "الطلب غير موجود" };
+  }
 
   revalidatePath("/orders");
   revalidatePath("/drivers");
@@ -104,14 +113,18 @@ export async function driverUpdateOrderStatusAction(formData: FormData) {
   }
 
   const order = await prisma.order.findFirst({
-    where: { id: orderId, driverId: session.driverId },
+    where: {
+      id: orderId,
+      companyId: session.companyId,
+      driverId: session.driverId,
+    },
   });
 
   if (!order) {
     return { error: "الطلب غير موجود أو غير مسند إليك" };
   }
 
-  await updateOrderStatus(orderId, statusParsed.data);
+  await updateOrderStatus(session.companyId, orderId, statusParsed.data);
 
   revalidatePath("/driver");
   revalidatePath("/orders");
@@ -136,11 +149,12 @@ export async function customerCreateOrderAction(formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
   }
 
-  const products = await getProducts(true);
+  const products = await getProducts(session.companyId, true);
   const product = products.find((p) => p.id === parsed.data.productId);
   if (!product) return { error: "المنتج غير موجود" };
 
   await createOrderQuery({
+    companyId: session.companyId,
     ...parsed.data,
     bottleSize: product.sizeLiters,
     price: parsed.data.bottles * product.price,

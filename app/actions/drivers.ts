@@ -12,7 +12,7 @@ import { normalizePhone } from "@/lib/validations/phone";
 import { driverSchema, driverStatusSchema } from "@/lib/validations/schemas";
 
 export async function createDriverAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = driverSchema.safeParse({
     name: formData.get("name"),
@@ -35,6 +35,7 @@ export async function createDriverAction(formData: FormData) {
 
   try {
     await createDriverQuery({
+      companyId: session.companyId,
       name: parsed.data.name,
       phone,
       passwordHash,
@@ -52,7 +53,7 @@ export async function createDriverAction(formData: FormData) {
 }
 
 export async function updateDriverStatusAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
   const statusParsed = driverStatusSchema.safeParse(formData.get("status"));
@@ -61,7 +62,15 @@ export async function updateDriverStatusAction(formData: FormData) {
     return { error: "بيانات غير صالحة" };
   }
 
-  await updateDriverStatus(id, statusParsed.data);
+  const result = await updateDriverStatus(
+    session.companyId,
+    id,
+    statusParsed.data,
+  );
+
+  if (result.count === 0) {
+    return { error: "السائق غير موجود" };
+  }
 
   revalidatePath("/drivers");
   revalidatePath("/orders/new");

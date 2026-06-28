@@ -9,7 +9,7 @@ import {
 import { productSchema } from "@/lib/validations/schemas";
 
 export async function createProductAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const parsed = productSchema.safeParse({
     name: formData.get("name"),
@@ -21,7 +21,7 @@ export async function createProductAction(formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
   }
 
-  await createProductQuery(parsed.data);
+  await createProductQuery(session.companyId, parsed.data);
 
   revalidatePath("/products");
   revalidatePath("/orders/new");
@@ -31,14 +31,17 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function toggleProductAction(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const id = String(formData.get("id") ?? "");
   const isActive = formData.get("isActive") === "true";
 
   if (!id) return { error: "معرف المنتج مطلوب" };
 
-  await toggleProductActive(id, isActive);
+  const result = await toggleProductActive(session.companyId, id, isActive);
+  if (result.count === 0) {
+    return { error: "المنتج غير موجود" };
+  }
 
   revalidatePath("/products");
   revalidatePath("/orders/new");

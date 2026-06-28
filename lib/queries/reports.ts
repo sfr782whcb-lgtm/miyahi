@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { startOfMonth } from "@/lib/constants";
+import { tenantFilter } from "@/lib/tenant/context";
 
-export async function getReportsData() {
+export async function getReportsData(companyId: string) {
   const monthStart = startOfMonth();
 
   const monthOrders = await prisma.order.findMany({
     where: {
+      ...tenantFilter(companyId),
       createdAt: { gte: monthStart },
       status: { not: "CANCELLED" },
     },

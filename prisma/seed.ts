@@ -4,15 +4,31 @@ import { isValidSaudiPhone, normalizePhone } from "../lib/validations/phone";
 
 const prisma = new PrismaClient();
 
+const DEFAULT_COMPANY_ID = "default-company";
+
 const products = [
   { name: "قارورة 20 لتر", sizeLiters: 20, price: 5 },
   { name: "قارورة 10 لتر", sizeLiters: 10, price: 3 },
 ];
 
-async function seedProducts() {
+async function ensureDefaultCompany() {
+  await prisma.company.upsert({
+    where: { slug: "default" },
+    update: {},
+    create: {
+      id: DEFAULT_COMPANY_ID,
+      name: "شركة مياهي الافتراضية",
+      slug: "default",
+      status: "ACTIVE",
+      trialEndsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    },
+  });
+}
+
+async function seedProducts(companyId: string) {
   for (const product of products) {
     const existing = await prisma.product.findFirst({
-      where: { name: product.name, sizeLiters: product.sizeLiters },
+      where: { companyId, name: product.name, sizeLiters: product.sizeLiters },
     });
 
     if (existing) {
@@ -23,11 +39,13 @@ async function seedProducts() {
       continue;
     }
 
-    await prisma.product.create({ data: product });
+    await prisma.product.create({
+      data: { companyId, ...product },
+    });
   }
 }
 
-async function seedAdminFromEnv() {
+async function seedAdminFromEnv(companyId: string) {
   const phone = process.env.ADMIN_PHONE?.trim();
   const password = process.env.ADMIN_PASSWORD;
   const name = process.env.ADMIN_NAME?.trim() || "مدير النظام";
@@ -47,7 +65,7 @@ async function seedAdminFromEnv() {
   }
 
   const existingAdmin = await prisma.user.findFirst({
-    where: { role: "ADMIN" },
+    where: { role: "ADMIN", companyId },
   });
 
   if (existingAdmin) {
@@ -59,6 +77,7 @@ async function seedAdminFromEnv() {
 
   await prisma.user.create({
     data: {
+      companyId,
       phone: normalizedPhone,
       passwordHash,
       name,
@@ -69,9 +88,51 @@ async function seedAdminFromEnv() {
   console.log(`Admin user created for phone ${normalizedPhone}`);
 }
 
+async function seedSuperAdminFromEnv() {
+  const phone = process.env.SUPER_ADMIN_PHONE?.trim();
+  const password = process.env.SUPER_ADMIN_PASSWORD;
+  const name = process.env.SUPER_ADMIN_NAME?.trim() || "مدير المنصة";
+
+  if (!phone || !password) {
+    console.log(
+      "Skipping super admin seed (set SUPER_ADMIN_PHONE and SUPER_ADMIN_PASSWORD)",
+    );
+    return;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!isValidSaudiPhone(normalizedPhone)) {
+    throw new Error("SUPER_ADMIN_PHONE must be a valid Saudi mobile number (05XXXXXXXX)");
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: { role: "SUPER_ADMIN", phone: normalizedPhone },
+  });
+
+  if (existing) {
+    console.log("Super admin already exists, skipping");
+    return;
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  await prisma.user.create({
+    data: {
+      phone: normalizedPhone,
+      passwordHash,
+      name,
+      role: "SUPER_ADMIN",
+    },
+  });
+
+  console.log(`Super admin created for phone ${normalizedPhone}`);
+}
+
 async function main() {
-  await seedProducts();
-  await seedAdminFromEnv();
+  await ensureDefaultCompany();
+  await seedProducts(DEFAULT_COMPANY_ID);
+  await seedAdminFromEnv(DEFAULT_COMPANY_ID);
+  await seedSuperAdminFromEnv();
 }
 
 main()

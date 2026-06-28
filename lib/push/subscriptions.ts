@@ -54,25 +54,25 @@ export async function getPushSubscriptionsForUsers(userIds: string[]) {
   });
 }
 
-export async function getAdminUserIds() {
+export async function getAdminUserIds(companyId: string) {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: "ADMIN", companyId },
     select: { id: true },
   });
   return admins.map((admin) => admin.id);
 }
 
-export async function getDriverUserId(driverId: string) {
-  const driver = await prisma.driver.findUnique({
-    where: { id: driverId },
+export async function getDriverUserId(companyId: string, driverId: string) {
+  const driver = await prisma.driver.findFirst({
+    where: { id: driverId, companyId },
     select: { userId: true },
   });
   return driver?.userId ?? null;
 }
 
-export async function getCustomerUserId(customerId: string) {
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
+export async function getCustomerUserId(companyId: string, customerId: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, companyId },
     select: { userId: true },
   });
   return customer?.userId ?? null;

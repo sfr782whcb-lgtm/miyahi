@@ -1,4 +1,5 @@
 import PageHeader from "@/components/ui/page-header";
+import { requireAdmin } from "@/app/actions/auth";
 import { getAvailableDrivers } from "@/lib/queries/drivers";
 import { getProducts } from "@/lib/queries/products";
 import NewOrderForm from "./new-order-form";
@@ -6,9 +7,10 @@ import NewOrderForm from "./new-order-form";
 export const dynamic = "force-dynamic";
 
 export default async function NewOrderPage() {
+  const session = await requireAdmin();
   const [drivers, products] = await Promise.all([
-    getAvailableDrivers(),
-    getProducts(true),
+    getAvailableDrivers(session.companyId),
+    getProducts(session.companyId, true),
   ]);
 
   return (

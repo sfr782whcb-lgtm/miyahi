@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DriverPage() {
   const session = await requireDriver();
-  const orders = await getOrders({ driverId: session.driverId });
+  const orders = await getOrders(session.companyId, { driverId: session.driverId });
 
   const active = orders.filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED");
 
