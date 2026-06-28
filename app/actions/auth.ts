@@ -38,8 +38,8 @@ async function findLoginUser(phone: string, companySlug: string) {
     });
   }
 
-  const company = await prisma.company.findUnique({
-    where: { slug: companySlug },
+  const company = await prisma.company.findFirst({
+    where: { slug: companySlug, deletedAt: null },
   });
 
   if (!company) return null;
@@ -130,8 +130,8 @@ export async function registerAction(
     return { error: "رمز الشركة مطلوب" };
   }
 
-  const company = await prisma.company.findUnique({
-    where: { slug: companySlug },
+  const company = await prisma.company.findFirst({
+    where: { slug: companySlug, deletedAt: null },
   });
 
   if (!company) {

@@ -1,75 +1,104 @@
-import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import CompanyStatusBadge from "@/components/platform/company-status-badge";
+import PlatformStatCard from "@/components/platform/platform-stat-card";
+import {
+  formatPlatformCurrency,
+  formatPlatformDate,
+  SUBSCRIPTION_PLAN_LABELS,
+} from "@/lib/constants/platform";
+import { getPlatformDashboardStats } from "@/lib/queries/platform";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformDashboardPage() {
-  const [companiesCount, activeCompanies, totalOrders, totalUsers] = await Promise.all([
-    prisma.company.count(),
-    prisma.company.count({ where: { status: { in: ["ACTIVE", "TRIAL"] } } }),
-    prisma.order.count(),
-    prisma.user.count({ where: { role: { not: "SUPER_ADMIN" } } }),
-  ]);
-
-  const companies = await prisma.company.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 10,
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      status: true,
-      createdAt: true,
-      _count: { select: { users: true, orders: true } },
-    },
-  });
+  const stats = await getPlatformDashboardStats();
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "الشركات", value: companiesCount },
-          { label: "شركات نشطة", value: activeCompanies },
-          { label: "إجمالي الطلبات", value: totalOrders },
-          { label: "المستخدمون", value: totalUsers },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
-          >
-            <p className="text-sm text-gray-500">{stat.label}</p>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{stat.value}</p>
-          </div>
-        ))}
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">نظرة عامة</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            إحصائيات المنصة والشركات المسجلة
+          </p>
+        </div>
+        <Link
+          href="/platform/companies/new"
+          className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+        >
+          إنشاء شركة
+        </Link>
       </div>
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">أحدث الشركات</h2>
-        <div className="space-y-3">
-          {companies.map((company) => (
-            <div
-              key={company.id}
-              className="flex flex-col gap-2 rounded-xl border border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="font-medium text-gray-900">{company.name}</p>
-                <p className="text-sm text-gray-500" dir="ltr">
-                  {company.slug}
-                </p>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span>{company._count.users} مستخدم</span>
-                <span>{company._count.orders} طلب</span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  {company.status}
-                </span>
-              </div>
-            </div>
-          ))}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <PlatformStatCard label="إجمالي الشركات" value={stats.totalCompanies} />
+        <PlatformStatCard label="شركات نشطة" value={stats.activeCompanies} accent="emerald" />
+        <PlatformStatCard label="شركات موقوفة" value={stats.suspendedCompanies} accent="amber" />
+        <PlatformStatCard label="شركات تجريبية" value={stats.trialCompanies} accent="sky" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <PlatformStatCard
+          label="الإيراد الشهري (تقديري)"
+          value={formatPlatformCurrency(Math.round(stats.monthlySubscriptionRevenue))}
+          hint="قيمة تقديرية للاشتراكات"
+          accent="indigo"
+        />
+        <PlatformStatCard label="إجمالي الزبائن" value={stats.totalCustomers} accent="emerald" />
+        <PlatformStatCard label="إجمالي السائقين" value={stats.totalDrivers} accent="sky" />
+        <PlatformStatCard label="إجمالي الطلبات" value={stats.totalOrders} accent="rose" />
+      </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">أحدث الشركات</h2>
+          <Link href="/platform/companies" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+            عرض الكل
+          </Link>
         </div>
-        <p className="mt-6 text-sm text-gray-500">
-          إدارة الشركات الكاملة ستتوفر في المرحلة 3.
-        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-500">
+                <th className="px-3 py-3 text-right font-medium">الشركة</th>
+                <th className="px-3 py-3 text-right font-medium">الحالة</th>
+                <th className="px-3 py-3 text-right font-medium">الخطة</th>
+                <th className="px-3 py-3 text-right font-medium">الزبائن</th>
+                <th className="px-3 py-3 text-right font-medium">الطلبات</th>
+                <th className="px-3 py-3 text-right font-medium">تاريخ الإنشاء</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.recentCompanies.map((company) => (
+                <tr key={company.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-3 py-3">
+                    <Link
+                      href={`/platform/companies/${company.id}`}
+                      className="font-medium text-slate-900 hover:text-indigo-600"
+                    >
+                      {company.name}
+                    </Link>
+                    <p className="text-xs text-slate-500" dir="ltr">
+                      {company.slug}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <CompanyStatusBadge status={company.status} />
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {company.subscriptionPlan
+                      ? SUBSCRIPTION_PLAN_LABELS[company.subscriptionPlan]
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">{company._count.customers}</td>
+                  <td className="px-3 py-3 text-slate-600">{company._count.orders}</td>
+                  <td className="px-3 py-3 text-slate-600">{formatPlatformDate(company.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
-    </main>
+    </div>
   );
 }

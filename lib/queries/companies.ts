@@ -9,8 +9,8 @@ const DEFAULT_PRODUCTS = [
 const TRIAL_DAYS = 14;
 
 export async function getCompanyBySlug(slug: string) {
-  return prisma.company.findUnique({
-    where: { slug },
+  return prisma.company.findFirst({
+    where: { slug, deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -70,7 +70,7 @@ export async function registerCompany(input: {
 
 export async function listActiveCompaniesForRegistration() {
   return prisma.company.findMany({
-    where: { status: { in: ["ACTIVE", "TRIAL"] } },
+    where: { status: { in: ["ACTIVE", "TRIAL"] }, deletedAt: null },
     orderBy: { name: "asc" },
     select: { name: true, slug: true },
   });

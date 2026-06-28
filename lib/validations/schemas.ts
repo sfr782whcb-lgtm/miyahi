@@ -182,3 +182,49 @@ export const orderFilterSchema = z.object({
   status: orderStatusSchema.optional(),
   sort: z.enum(["newest", "oldest", "price"]).optional(),
 });
+
+export const companyStatusSchema = z.enum(["TRIAL", "ACTIVE", "SUSPENDED", "EXPIRED"]);
+
+export const subscriptionPlanSchema = z.enum(["MONTHLY", "YEARLY"]);
+
+export const platformCompanyBaseSchema = z.object({
+  name: z.string().trim().min(2, "اسم الشركة مطلوب"),
+  slug: companySlugSchema,
+  phone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  primaryColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "لون غير صالح")
+    .optional(),
+  status: companyStatusSchema,
+  subscriptionPlan: z.union([subscriptionPlanSchema, z.literal("")]).optional(),
+  trialEndsAt: z.string().trim().optional(),
+  subscriptionEndsAt: z.string().trim().optional(),
+});
+
+export const platformCompanyCreateSchema = platformCompanyBaseSchema
+  .extend({
+    adminName: z.string().trim().min(2, "اسم المدير مطلوب"),
+    adminPhone: saudiPhoneSchema,
+    adminPassword: passwordSchema,
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === "ACTIVE" && !data.subscriptionPlan) {
+      ctx.addIssue({
+        code: "custom",
+        message: "اختر خطة الاشتراك للشركات النشطة",
+        path: ["subscriptionPlan"],
+      });
+    }
+  });
+
+export const platformCompanyUpdateSchema = platformCompanyBaseSchema.superRefine((data, ctx) => {
+  if (data.status === "ACTIVE" && !data.subscriptionPlan) {
+    ctx.addIssue({
+      code: "custom",
+      message: "اختر خطة الاشتراك للشركات النشطة",
+      path: ["subscriptionPlan"],
+    });
+  }
+});
